@@ -2,67 +2,76 @@ import Product from "../models/product.js";
 import { isAdmin } from "./userController.js";
 
 export async function createProduct(req, res) {
-	if (!isAdmin(req)) {
-		res.status(403).json({
-			message: "Access denied. Admins only.",
-		});
-		return;
-	}
+    if (!isAdmin(req)) {
+        res.status(403).json({
+            message: "Access denied. Admins only.",
+        });
+        return;
+    }
 
-	try {
-		const existingProduct = await Product.findOne({
-			productId: req.body.productId,
-		});
+    try {
+        const existingProduct = await Product.findOne({
+            productId: req.body.productId,
+        });
 
-		if (existingProduct != null) {
-			res.status(400).json({
-				message: "Product with this productId already exists.",
-			});
-			return;
-		}
+        if (existingProduct != null) {
+            res.status(400).json({
+                message: "Product with this productId already exists.",
+            });
+            return;
+        }
 
-		const newProduct = new Product({
-			productId: req.body.productId,
-			name: req.body.name,
-			altNames: req.body.altNames,
-			price: req.body.price,
-			labelledPrice: req.body.labelledPrice,
-			description: req.body.description,
-			images: req.body.images,
-			brand: req.body.brand,
-			model: req.body.model,
-			category: req.body.category,
-			stock: req.body.stock,
-		});
+        const newProduct = new Product({
+            productId: req.body.productId,
+            name: req.body.name,
+            altNames: req.body.altNames,
+            price: req.body.price,
+            labelledPrice: req.body.labelledPrice,
+            description: req.body.description,
+            images: req.body.images,
+            brand: req.body.brand,
+            model: req.body.model,
+            category: req.body.category,
+            isAvailable: req.body.isAvailable,
+            stock: req.body.stock,
+        });
 
-		await newProduct.save();
+        await newProduct.save();
 
-		res.status(201).json({
-			message: "Product created successfully.",
-		});
-	} catch (error) {
-		res.status(500).json({
-			message: "Error creating product",
-		});
-	}
+        res.status(201).json({
+            message: "Product created successfully.",
+        });
+    } catch (error) {
+        console.error("CREATE PRODUCT ERROR:", error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
 }
 
 export async function getAllProducts(req, res) {
-    console.log("Fetching products....")
-	try {
-		if (isAdmin(req)) {
-			const products = await Product.find();
+    console.log("Fetching products....");
 
-			res.json(products);
-		}else {
-            const products = await Product.find({ isAvailable: true });
+    try {
+        if (isAdmin(req)) {
+            const products = await Product.find();
+
+            res.json(products);
+        } else {
+            const products = await Product.find({
+                isAvailable: true,
+            });
+
             res.json(products);
         }
-	} catch (error) {
-		res.status(500).json({
-			message: "Error fetching products",
-		});
-	}
+    } catch (error) {
+        console.error("GET PRODUCTS ERROR:", error);
+
+        res.status(500).json({
+            message: error.message,
+        });
+    }
 }
 
 export async function deleteProduct(req, res) {
@@ -73,23 +82,24 @@ export async function deleteProduct(req, res) {
         return;
     }
 
-    try{
-
+    try {
         await Product.deleteOne({
-            productId : req.params.productId
-        })
+            productId: req.params.productId,
+        });
+
         res.json({
             message: "Product deleted successfully.",
         });
-        
-    }catch(error){
+    } catch (error) {
+        console.error("DELETE PRODUCT ERROR:", error);
+
         res.status(500).json({
-            message: "Error deleting product",
+            message: error.message,
         });
     }
 }
 
-export async function updateProduct(req,res){
+export async function updateProduct(req, res) {
     if (!isAdmin(req)) {
         res.status(403).json({
             message: "Access denied. Admins only.",
@@ -97,59 +107,68 @@ export async function updateProduct(req,res){
         return;
     }
 
-    try{
-
-        await Product.updateOne({
-            productId : req.params.productId
-        },{
-            name : req.body.name,
-            altNames : req.body.altNames,
-            price : req.body.price,
-            labelledPrice : req.body.labelledPrice,
-            description : req.body.description,
-            images : req.body.images,
-            brand : req.body.brand,
-            model : req.body.model,
-            category : req.body.category,
-            stock : req.body.stock,
-            isAvailble : req.body.isAvailble
-        })
+    try {
+        await Product.updateOne(
+            {
+                productId: req.params.productId,
+            },
+            {
+                name: req.body.name,
+                altNames: req.body.altNames,
+                price: req.body.price,
+                labelledPrice: req.body.labelledPrice,
+                description: req.body.description,
+                images: req.body.images,
+                brand: req.body.brand,
+                model: req.body.model,
+                category: req.body.category,
+                stock: req.body.stock,
+                isAvailable: req.body.isAvailable,
+            }
+        );
 
         res.json({
-            message: "Product updated successfully."
+            message: "Product updated successfully.",
         });
-    }catch(error){
+    } catch (error) {
+        console.error("UPDATE PRODUCT ERROR:", error);
+
         res.status(500).json({
-            message: "Error updating product",
+            message: error.message,
         });
     }
 }
 
-export async function getProductById(req,res){
-    try{
+export async function getProductById(req, res) {
+    try {
         const product = await Product.findOne({
-            productId : req.params.productId
-        })
-        if(product == null){
+            productId: req.params.productId,
+        });
+
+        if (product == null) {
             res.status(404).json({
-                message : "Product not found"
-            })
-        }else{
-            if(product.isAvailable){
-                res.json(product)
-            }else{
-                if(isAdmin(req)){
-                    res.json(product)
-                }else{
-                    res.status(403).json({
-                        message : "Access denied. Admins only."
-                    })
-                }
-            }
-        }   
-    }catch(error){
+                message: "Product not found",
+            });
+            return;
+        }
+
+        if (product.isAvailable) {
+            res.json(product);
+            return;
+        }
+
+        if (isAdmin(req)) {
+            res.json(product);
+        } else {
+            res.status(403).json({
+                message: "Access denied. Admins only.",
+            });
+        }
+    } catch (error) {
+        console.error("GET PRODUCT ERROR:", error);
+
         res.status(500).json({
-            message: "Error fetching product",
+            message: error.message,
         });
     }
 }

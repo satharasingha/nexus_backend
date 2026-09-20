@@ -182,3 +182,130 @@ export function isAdmin(req){
         return false
     }
 }
+
+
+/* =========================================================
+   ADMIN-ONLY FUNCTIONS
+========================================================= */
+
+/* ================= GET ALL USERS (ADMIN) ================= */
+export async function getAllUsers(req, res) {
+    if (req.user == null) {
+        return res.status(401).json({
+            message: "Unauthorized"
+        })
+    }
+
+    try {
+        // Confirm admin via DB (safest source of truth)
+        const currentUser = await User.findOne({ email: req.user.email })
+        if (currentUser == null || !currentUser.isAdmin) {
+            return res.status(403).json({
+                message: "Admin access required"
+            })
+        }
+
+        // Fetch all users, exclude password, newest first
+        const users = await User.find()
+            .select("-password")
+            .sort({ _id: -1 })
+
+        res.json(users)
+    } catch (error) {
+        res.status(500).json({
+            message: "Error fetching users"
+        })
+    }
+}
+
+/* ================= TOGGLE BLOCK (ADMIN) ================= */
+export async function toggleBlockUser(req, res) {
+    if (req.user == null) {
+        return res.status(401).json({
+            message: "Unauthorized"
+        })
+    }
+
+    try {
+        const currentUser = await User.findOne({ email: req.user.email })
+        if (currentUser == null || !currentUser.isAdmin) {
+            return res.status(403).json({
+                message: "Admin access required"
+            })
+        }
+
+        const targetUser = await User.findById(req.params.id)
+        if (targetUser == null) {
+            return res.status(404).json({
+                message: "User not found"
+            })
+        }
+
+        // Prevent admin from blocking themselves
+        if (targetUser.email === req.user.email) {
+            return res.status(400).json({
+                message: "You cannot block your own account"
+            })
+        }
+
+        targetUser.isBlocked = !!req.body.isBlocked
+        await targetUser.save()
+
+        const safeUser = await User.findById(targetUser._id).select("-password")
+
+        res.json({
+            message: "User block status updated",
+            user: safeUser
+        })
+    } catch (error) {
+        res.status(500).json({
+            message: "Error updating user block status"
+        })
+    }
+}
+
+/* ================= TOGGLE ADMIN (ADMIN) ================= */
+export async function toggleAdminUser(req, res) {
+    if (req.user == null) {
+        return res.status(401).json({
+            message: "Unauthorized"
+        })
+    }
+
+    try {
+        const currentUser = await User.findOne({ email: req.user.email })
+        if (currentUser == null || !currentUser.isAdmin) {
+            return res.status(403).json({
+                message: "Admin access required"
+            })
+        }
+
+        const targetUser = await User.findById(req.params.id)
+        if (targetUser == null) {
+            return res.status(404).json({
+                message: "User not found"
+            })
+        }
+
+        // Prevent admin from demoting themselves
+        if (targetUser.email === req.user.email) {
+            return res.status(400).json({
+                message: "You cannot change your own admin role"
+            })
+        }
+
+        targetUser.isAdmin = !!req.body.isAdmin
+        await targetUser.save()
+
+        const safeUser = await User.findById(targetUser._id).select("-password")
+
+        res.json({
+            message: "User admin role updated",
+            user: safeUser
+        })
+    } catch (error) {
+        res.status(500).json({
+            message: "Error updating user admin role"
+        })
+    }
+}
